@@ -13,22 +13,42 @@ title:
 
 Cards usually cooperate with grid column layout in overview page.
 
-````jsx
+```jsx
 import { Card, Col, Row } from 'antd';
 
 ReactDOM.render(
-  <div style={{ background: '#ECECEC', padding: '30px' }}>
+  <div className="site-card-wrapper">
     <Row gutter={16}>
       <Col span={8}>
-        <Card title="Card title" bordered={false}>Card content</Card>
+        <Card title="Card title" bordered={false}>
+          Card content
+        </Card>
       </Col>
       <Col span={8}>
-        <Card title="Card title" bordered={false}>Card content</Card>
+        <Card title="Card title" bordered={false}>
+          Card content
+        </Card>
       </Col>
       <Col span={8}>
-        <Card title="Card title" bordered={false}>Card content</Card>
+        <Card title="Card title" bordered={false}>
+          Card content
+        </Card>
       </Col>
     </Row>
   </div>,
-  mountNode);
-````
+  mountNode,
+);
+```
+
+```css
+.site-card-wrapper {
+  background: #ececec;
+  padding: 30px;
+}
+```
+
+<style>
+  [data-theme="dark"] .site-card-wrapper {
+    background: #303030;
+  }
+</style>

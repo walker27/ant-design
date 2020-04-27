@@ -1,9 +1,9 @@
-import createContext, { Context } from 'create-react-context';
+import { createContext, Context } from 'react';
 
 export interface RowContextState {
-  gutter?: number;
+  gutter?: [number, number];
 }
 
-const RowContext: Context<RowContextState> =  createContext({});
+const RowContext: Context<RowContextState> = createContext({});
 
 export default RowContext;

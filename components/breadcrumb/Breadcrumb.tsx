@@ -1,13 +1,18 @@
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
-import { cloneElement } from 'react';
-import warning from '../_util/warning';
-import BreadcrumbItem from './BreadcrumbItem';
 import classNames from 'classnames';
+import toArray from 'rc-util/lib/Children/toArray';
+import omit from 'omit.js';
+import BreadcrumbItem from './BreadcrumbItem';
+import BreadcrumbSeparator from './BreadcrumbSeparator';
+import Menu from '../menu';
+import { ConfigConsumer, ConfigConsumerProps } from '../config-provider';
+import warning from '../_util/warning';
+import { Omit } from '../_util/type';
 
 export interface Route {
   path: string;
   breadcrumbName: string;
+  children?: Omit<Route, 'children'>[];
 }
 
 export interface BreadcrumbProps {
@@ -15,7 +20,12 @@ export interface BreadcrumbProps {
   routes?: Route[];
   params?: any;
   separator?: React.ReactNode;
-  itemRender?: (route: any, params: any, routes: Array<any>, paths: Array<string>) => React.ReactNode;
+  itemRender?: (
+    route: Route,
+    params: any,
+    routes: Array<Route>,
+    paths: Array<string>,
+  ) => React.ReactNode;
   style?: React.CSSProperties;
   className?: string;
 }
@@ -35,79 +45,120 @@ function getBreadcrumbName(route: Route, params: any) {
 function defaultItemRender(route: Route, params: any, routes: Route[], paths: string[]) {
   const isLastItem = routes.indexOf(route) === routes.length - 1;
   const name = getBreadcrumbName(route, params);
-  return isLastItem
-    ? <span>{name}</span>
-    : <a href={`#/${paths.join('/')}`}>{name}</a>;
+  return isLastItem ? <span>{name}</span> : <a href={`#/${paths.join('/')}`}>{name}</a>;
 }
 
 export default class Breadcrumb extends React.Component<BreadcrumbProps, any> {
   static Item: typeof BreadcrumbItem;
 
+  static Separator: typeof BreadcrumbSeparator;
+
   static defaultProps = {
-    prefixCls: 'ant-breadcrumb',
     separator: '/',
   };
 
-  static propTypes = {
-    prefixCls: PropTypes.string,
-    separator: PropTypes.node,
-    routes: PropTypes.array,
-    params: PropTypes.object,
-    linkRender: PropTypes.func,
-    nameRender: PropTypes.func,
+  getPath = (path: string, params: any) => {
+    path = (path || '').replace(/^\//, '');
+    Object.keys(params).forEach(key => {
+      path = path.replace(`:${key}`, params[key]);
+    });
+    return path;
   };
 
-  componentDidMount() {
-    const props = this.props;
-    warning(
-      !('linkRender' in props || 'nameRender' in props),
-      '`linkRender` and `nameRender` are removed, please use `itemRender` instead, ' +
-      'see: https://u.ant.design/item-render.',
-    );
-  }
+  addChildPath = (paths: string[], childPath: string = '', params: any) => {
+    const originalPaths = [...paths];
+    const path = this.getPath(childPath, params);
+    if (path) {
+      originalPaths.push(path);
+    }
+    return originalPaths;
+  };
 
-  render() {
+  genForRoutes = ({
+    routes = [],
+    params = {},
+    separator,
+    itemRender = defaultItemRender,
+  }: BreadcrumbProps) => {
+    const paths: string[] = [];
+    return routes.map(route => {
+      const path = this.getPath(route.path, params);
+
+      if (path) {
+        paths.push(path);
+      }
+      // generated overlay by route.children
+      let overlay;
+      if (route.children && route.children.length) {
+        overlay = (
+          <Menu>
+            {route.children.map(child => (
+              <Menu.Item key={child.path || child.breadcrumbName}>
+                {itemRender(child, params, routes, this.addChildPath(paths, child.path, params))}
+              </Menu.Item>
+            ))}
+          </Menu>
+        );
+      }
+
+      return (
+        <BreadcrumbItem overlay={overlay} separator={separator} key={path || route.breadcrumbName}>
+          {itemRender(route, params, routes, paths)}
+        </BreadcrumbItem>
+      );
+    });
+  };
+
+  renderBreadcrumb = ({ getPrefixCls, direction }: ConfigConsumerProps) => {
     let crumbs;
     const {
-      separator, prefixCls, style, className, routes, params = {},
-      children, itemRender = defaultItemRender,
+      prefixCls: customizePrefixCls,
+      separator,
+      style,
+      className,
+      routes,
+      children,
+      ...restProps
     } = this.props;
+    const prefixCls = getPrefixCls('breadcrumb', customizePrefixCls);
     if (routes && routes.length > 0) {
-      const paths: string[] = [];
-      crumbs = routes.map((route) => {
-        route.path = route.path || '';
-        let path: string = route.path.replace(/^\//, '');
-        Object.keys(params).forEach(key => {
-          path = path.replace(`:${key}`, params[key]);
-        });
-        if (path) {
-          paths.push(path);
-        }
-        return (
-          <BreadcrumbItem separator={separator} key={route.breadcrumbName || path}>
-            {itemRender(route, params, routes, paths)}
-          </BreadcrumbItem>
-        );
-      });
+      // generated by route
+      crumbs = this.genForRoutes(this.props);
     } else if (children) {
-      crumbs = React.Children.map(children, (element: any, index) => {
+      crumbs = toArray(children).map((element: any, index) => {
         if (!element) {
           return element;
         }
+
         warning(
-          element.type && element.type.__ANT_BREADCRUMB_ITEM,
-          'Breadcrumb only accepts Breadcrumb.Item as it\'s children',
+          element.type &&
+            (element.type.__ANT_BREADCRUMB_ITEM === true ||
+              element.type.__ANT_BREADCRUMB_SEPARATOR === true),
+          'Breadcrumb',
+          "Only accepts Breadcrumb.Item and Breadcrumb.Separator as it's children",
         );
-        return cloneElement(element, {
+
+        return React.cloneElement(element, {
           separator,
-          key: index,
+          key: index, // eslint-disable-line react/no-array-index-key
         });
       });
     }
+    const breadcrumbClassName = classNames(className, prefixCls, {
+      [`${prefixCls}-rtl`]: direction === 'rtl',
+    });
     return (
-      <div className={classNames(className, prefixCls)} style={style}>
+      <div
+        className={breadcrumbClassName}
+        style={style}
+        {...omit(restProps, ['itemRender', 'linkRender', 'nameRender', 'params'])}
+      >
         {crumbs}
       </div>
     );
+  };
+
+  render() {
+    return <ConfigConsumer>{this.renderBreadcrumb}</ConfigConsumer>;
   }
 }

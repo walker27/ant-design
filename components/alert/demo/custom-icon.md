@@ -12,12 +12,13 @@ title:
 
 ## en-US
 
-Decent icon make information more clear and more friendly.
+A relevant icon makes information clearer and more friendly.
 
-````jsx
-import { Alert, Icon } from 'antd';
+```tsx
+import { Alert } from 'antd';
+import { SmileOutlined } from '@ant-design/icons';
 
-const icon = <Icon type="smile" />;
+const icon = <SmileOutlined />;
 
 ReactDOM.render(
   <div>
@@ -55,5 +56,6 @@ ReactDOM.render(
       showIcon
     />
   </div>,
-  mountNode);
-````
+  mountNode,
+);
+```

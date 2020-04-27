@@ -1,41 +1,76 @@
 import * as React from 'react';
-import Icon from '../icon';
 import ScrollableInkTabBar from 'rc-tabs/lib/ScrollableInkTabBar';
+import classNames from 'classnames';
+import UpOutlined from '@ant-design/icons/UpOutlined';
+import LeftOutlined from '@ant-design/icons/LeftOutlined';
+import DownOutlined from '@ant-design/icons/DownOutlined';
+import RightOutlined from '@ant-design/icons/RightOutlined';
+
 import { TabsProps } from './index';
+import { ConfigConsumerProps, ConfigConsumer } from '../config-provider';
 
 export default class TabBar extends React.Component<TabsProps> {
-  render() {
+  static defaultProps = {
+    animated: true,
+    type: 'line' as TabsProps['type'],
+  };
+
+  renderTabBar = ({ direction }: ConfigConsumerProps) => {
     const {
       tabBarStyle,
-      animated = true,
+      animated,
       renderTabBar,
       tabBarExtraContent,
       tabPosition,
       prefixCls,
+      className,
+      size,
+      type,
     } = this.props;
     const inkBarAnimated = typeof animated === 'object' ? animated.inkBar : animated;
 
     const isVertical = tabPosition === 'left' || tabPosition === 'right';
-    const prevIconType = isVertical ? 'up' : 'left';
-    const nextIconType = isVertical ? 'down' : 'right';
+    let prevIconComponent = isVertical ? UpOutlined : LeftOutlined;
+    let nextIconComponent = isVertical ? DownOutlined : RightOutlined;
+
+    if (direction === 'rtl' && !isVertical) {
+      prevIconComponent = RightOutlined;
+      nextIconComponent = LeftOutlined;
+    }
     const prevIcon = (
       <span className={`${prefixCls}-tab-prev-icon`}>
-        <Icon type={prevIconType} className={`${prefixCls}-tab-prev-icon-target`} />
+        {React.createElement(prevIconComponent, {
+          className: `${prefixCls}-tab-prev-icon-target`,
+        })}
       </span>
     );
     const nextIcon = (
       <span className={`${prefixCls}-tab-next-icon`}>
-        <Icon type={nextIconType} className={`${prefixCls}-tab-next-icon-target`} />
+        {React.createElement(nextIconComponent, {
+          className: `${prefixCls}-tab-next-icon-target`,
+        })}
       </span>
+    );
+
+    // Additional className for style usage
+    const cls: string = classNames(
+      `${prefixCls}-${tabPosition}-bar`,
+      {
+        [`${prefixCls}-${size}-bar`]: !!size,
+        [`${prefixCls}-card-bar`]: type && type.indexOf('card') >= 0,
+      },
+      className,
     );
 
     const renderProps = {
       ...this.props,
+      children: null,
       inkBarAnimated,
       extraContent: tabBarExtraContent,
       style: tabBarStyle,
       prevIcon,
       nextIcon,
+      className: cls,
     };
 
     let RenderTabBar: React.ReactElement<any>;
@@ -47,5 +82,9 @@ export default class TabBar extends React.Component<TabsProps> {
     }
 
     return React.cloneElement(RenderTabBar);
+  };
+
+  render() {
+    return <ConfigConsumer>{this.renderTabBar}</ConfigConsumer>;
   }
 }

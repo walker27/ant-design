@@ -1,8 +1,9 @@
 ---
-order: 11
+order: 99
 title:
   zh-CN: 受控面板
   en-US: Controlled Panels
+debug: true
 ---
 
 ## zh-CN
@@ -13,7 +14,7 @@ title:
 
 Determing which panel to show with `mode` and `onPanelChange`.
 
-````jsx
+```jsx
 import { DatePicker } from 'antd';
 
 const { RangePicker } = DatePicker;
@@ -21,15 +22,15 @@ const { RangePicker } = DatePicker;
 class ControlledDatePicker extends React.Component {
   state = { mode: 'time' };
 
-  handleOpenChange = (open) => {
+  handleOpenChange = open => {
     if (open) {
       this.setState({ mode: 'time' });
     }
-  }
+  };
 
   handlePanelChange = (value, mode) => {
     this.setState({ mode });
-  }
+  };
 
   render() {
     return (
@@ -52,12 +53,13 @@ class ControlledRangePicker extends React.Component {
   handlePanelChange = (value, mode) => {
     this.setState({
       value,
-      mode: [
-        mode[0] === 'date' ? 'month' : mode[0],
-        mode[1] === 'date' ? 'month' : mode[1],
-      ],
+      mode: [mode[0] === 'date' ? 'month' : mode[0], mode[1] === 'date' ? 'month' : mode[1]],
     });
-  }
+  };
+
+  handleChange = value => {
+    this.setState({ value });
+  };
 
   render() {
     const { value, mode } = this.state;
@@ -67,6 +69,7 @@ class ControlledRangePicker extends React.Component {
         format="YYYY-MM"
         value={value}
         mode={mode}
+        onChange={this.handleChange}
         onPanelChange={this.handlePanelChange}
       />
     );
@@ -79,5 +82,6 @@ ReactDOM.render(
     <br />
     <ControlledRangePicker />
   </div>,
-  mountNode);
-````
+  mountNode,
+);
+```

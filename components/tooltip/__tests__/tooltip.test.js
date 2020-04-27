@@ -2,27 +2,26 @@ import React from 'react';
 import { mount } from 'enzyme';
 import Tooltip from '..';
 import Button from '../../button';
+import Switch from '../../switch';
+import Checkbox from '../../checkbox';
 import DatePicker from '../../date-picker';
 import Input from '../../input';
 import Group from '../../input/Group';
-
-const delay = timeout => new Promise(resolve => setTimeout(resolve, timeout));
+import { sleep } from '../../../tests/utils';
+import mountTest from '../../../tests/shared/mountTest';
+import rtlTest from '../../../tests/shared/rtlTest';
 
 describe('Tooltip', () => {
+  mountTest(Tooltip);
+  rtlTest(Tooltip);
+
   it('check `onVisibleChange` arguments', () => {
     const onVisibleChange = jest.fn();
 
     const wrapper = mount(
-      <Tooltip
-        title=""
-        mouseEnterDelay={0}
-        mouseLeaveDelay={0}
-        onVisibleChange={onVisibleChange}
-      >
-        <div id="hello">
-          Hello world!
-        </div>
-      </Tooltip>
+      <Tooltip title="" mouseEnterDelay={0} mouseLeaveDelay={0} onVisibleChange={onVisibleChange}>
+        <div id="hello">Hello world!</div>
+      </Tooltip>,
     );
 
     // `title` is empty.
@@ -67,55 +66,67 @@ describe('Tooltip', () => {
         mouseLeaveDelay={0}
         onVisibleChange={onVisibleChange}
       >
-        <button type="button" disabled>Hello world!</button>
-      </Tooltip>
+        <button type="button" disabled>
+          Hello world!
+        </button>
+      </Tooltip>,
     );
 
     expect(wrapper.find('span')).toHaveLength(1);
     const button = wrapper.find('span').at(0);
     button.simulate('mouseenter');
-    expect(onVisibleChange).toBeCalledWith(true);
+    expect(onVisibleChange).toHaveBeenCalledWith(true);
     expect(wrapper.instance().tooltip.props.visible).toBe(true);
 
     button.simulate('mouseleave');
-    expect(onVisibleChange).toBeCalledWith(false);
+    expect(onVisibleChange).toHaveBeenCalledWith(false);
     expect(wrapper.instance().tooltip.props.visible).toBe(false);
   });
 
-  it('should hide when mouse leave antd disabled Button', () => {
-    const onVisibleChange = jest.fn();
-    const wrapper = mount(
-      <Tooltip
-        title="xxxxx"
-        mouseEnterDelay={0}
-        mouseLeaveDelay={0}
-        onVisibleChange={onVisibleChange}
-      >
-        <Button disabled>Hello world!</Button>
-      </Tooltip>
-    );
+  describe('should hide when mouse leave antd disabled component', () => {
+    function testComponent(name, Component) {
+      it(name, () => {
+        const onVisibleChange = jest.fn();
+        const wrapper = mount(
+          <Tooltip
+            title="xxxxx"
+            mouseEnterDelay={0}
+            mouseLeaveDelay={0}
+            onVisibleChange={onVisibleChange}
+          >
+            <Component disabled />
+          </Tooltip>,
+        );
 
-    expect(wrapper.render()).toMatchSnapshot();
-    const button = wrapper.find('span').at(0);
-    button.simulate('mouseenter');
-    expect(onVisibleChange).toBeCalledWith(true);
-    expect(wrapper.instance().tooltip.props.visible).toBe(true);
+        expect(wrapper.render()).toMatchSnapshot();
+        const button = wrapper.find('span').at(0);
+        button.simulate('mouseenter');
+        expect(onVisibleChange).toHaveBeenCalledWith(true);
+        expect(wrapper.instance().tooltip.props.visible).toBe(true);
 
-    button.simulate('mouseleave');
-    expect(onVisibleChange).toBeCalledWith(false);
-    expect(wrapper.instance().tooltip.props.visible).toBe(false);
+        button.simulate('mouseleave');
+        expect(onVisibleChange).toHaveBeenCalledWith(false);
+        expect(wrapper.instance().tooltip.props.visible).toBe(false);
+      });
+    }
+
+    testComponent('Button', Button);
+    testComponent('Switch', Switch);
+    testComponent('Checkbox', Checkbox);
   });
 
   it('should render disabled Button style properly', () => {
     const wrapper1 = mount(
       <Tooltip title="xxxxx">
         <Button disabled>Hello world!</Button>
-      </Tooltip>
+      </Tooltip>,
     );
     const wrapper2 = mount(
       <Tooltip title="xxxxx">
-        <Button disabled style={{ display: 'block' }}>Hello world!</Button>
-      </Tooltip>
+        <Button disabled style={{ display: 'block' }}>
+          Hello world!
+        </Button>
+      </Tooltip>,
     );
     expect(wrapper1.find('span').first().getDOMNode().style.display).toBe('inline-block');
     expect(wrapper2.find('span').first().getDOMNode().style.display).toBe('block');
@@ -138,7 +149,7 @@ describe('Tooltip', () => {
           <button type="button" style={{ width: triggerWidth }}>
             Hello world!
           </button>
-        </Tooltip>
+        </Tooltip>,
       );
       wrapper.find('button').at(0).simulate('click');
       const popupLeftDefault = parseInt(wrapper.instance().getPopupDomNode().style.left, 10);
@@ -155,11 +166,16 @@ describe('Tooltip', () => {
           <button type="button" style={{ width: triggerWidth }}>
             Hello world!
           </button>
-        </Tooltip>
+        </Tooltip>,
       );
       wrapper2.find('button').at(0).simulate('click');
-      const popupLeftArrowPointAtCenter = parseInt(wrapper2.instance().getPopupDomNode().style.left, 10);
-      expect(popupLeftArrowPointAtCenter - popupLeftDefault).toBe((triggerWidth / 2) - horizontalArrowShift - arrowWidth);
+      const popupLeftArrowPointAtCenter = parseInt(
+        wrapper2.instance().getPopupDomNode().style.left,
+        10,
+      );
+      expect(popupLeftArrowPointAtCenter - popupLeftDefault).toBe(
+        triggerWidth / 2 - horizontalArrowShift - arrowWidth,
+      );
     };
 
     jest.dontMock('rc-trigger', suit);
@@ -169,24 +185,21 @@ describe('Tooltip', () => {
     const onVisibleChange = jest.fn();
 
     const wrapper = mount(
-      <Tooltip
-        title="date picker"
-        onVisibleChange={onVisibleChange}
-      >
+      <Tooltip title="date picker" onVisibleChange={onVisibleChange}>
         <DatePicker />
-      </Tooltip>
+      </Tooltip>,
     );
 
-    expect(wrapper.find('span.ant-calendar-picker')).toHaveLength(1);
-    const picker = wrapper.find('span.ant-calendar-picker').at(0);
+    expect(wrapper.find('.ant-picker')).toHaveLength(1);
+    const picker = wrapper.find('.ant-picker').at(0);
     picker.simulate('mouseenter');
-    await delay(100);
-    expect(onVisibleChange).toBeCalledWith(true);
+    await sleep(100);
+    expect(onVisibleChange).toHaveBeenCalledWith(true);
     expect(wrapper.instance().tooltip.props.visible).toBe(true);
 
     picker.simulate('mouseleave');
-    await delay(100);
-    expect(onVisibleChange).toBeCalledWith(false);
+    await sleep(100);
+    expect(onVisibleChange).toHaveBeenCalledWith(false);
     expect(wrapper.instance().tooltip.props.visible).toBe(false);
   });
 
@@ -194,27 +207,94 @@ describe('Tooltip', () => {
     const onVisibleChange = jest.fn();
 
     const wrapper = mount(
-      <Tooltip
-        title="hello"
-        onVisibleChange={onVisibleChange}
-      >
+      <Tooltip title="hello" onVisibleChange={onVisibleChange}>
         <Group>
           <Input style={{ width: '50%' }} />
           <Input style={{ width: '50%' }} />
         </Group>
-      </Tooltip>
+      </Tooltip>,
     );
 
     expect(wrapper.find('Group')).toHaveLength(1);
     const picker = wrapper.find('Group').at(0);
     picker.simulate('mouseenter');
-    await delay(100);
-    expect(onVisibleChange).toBeCalledWith(true);
+    await sleep(100);
+    expect(onVisibleChange).toHaveBeenCalledWith(true);
     expect(wrapper.instance().tooltip.props.visible).toBe(true);
 
     picker.simulate('mouseleave');
-    await delay(100);
-    expect(onVisibleChange).toBeCalledWith(false);
+    await sleep(100);
+    expect(onVisibleChange).toHaveBeenCalledWith(false);
     expect(wrapper.instance().tooltip.props.visible).toBe(false);
+  });
+
+  // https://github.com/ant-design/ant-design/issues/20891
+  it('should display zero', () => {
+    const wrapper = mount(
+      <Tooltip title={0} visible>
+        <div />
+      </Tooltip>,
+    );
+    expect(wrapper.find('.ant-tooltip-inner').getDOMNode().innerHTML).toBe('0');
+  });
+
+  it('autoAdjustOverflow should be object or undefined', () => {
+    expect(() => {
+      mount(
+        <Tooltip title={0} visible autoAdjustOverflow={{ adjustX: 0, adjustY: 0 }}>
+          <div />
+        </Tooltip>,
+      );
+    }).not.toThrow();
+
+    expect(() => {
+      mount(
+        <Tooltip title={0} visible autoAdjustOverflow={undefined}>
+          <div />
+        </Tooltip>,
+      );
+    }).not.toThrow();
+  });
+
+  it('support other placement', done => {
+    const wrapper = mount(
+      <Tooltip
+        title="xxxxx"
+        placement="bottomLeft"
+        transitionName=""
+        mouseEnterDelay={0}
+        afterVisibleChange={visible => {
+          if (visible) {
+            expect(wrapper.find('Trigger').props().popupPlacement).toBe('bottomLeft');
+          }
+          done();
+        }}
+      >
+        <span>Hello world!</span>
+      </Tooltip>,
+    );
+    expect(wrapper.find('span')).toHaveLength(1);
+    const button = wrapper.find('span').at(0);
+    button.simulate('mouseenter');
+  });
+
+  it('other placement when mouse enter', async () => {
+    const wrapper = mount(
+      <Tooltip
+        title="xxxxx"
+        placement="topRight"
+        transitionName=""
+        popupTransitionName=""
+        mouseEnterDelay={0}
+      >
+        <span>Hello world!</span>
+      </Tooltip>,
+    );
+
+    expect(wrapper.find('span')).toHaveLength(1);
+    const button = wrapper.find('span').at(0);
+    button.simulate('mouseenter');
+    await sleep(500);
+    expect(wrapper.instance().getPopupDomNode().className).toContain('placement-topRight');
   });
 });

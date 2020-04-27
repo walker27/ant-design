@@ -1,7 +1,11 @@
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
 import RcRate from 'rc-rate';
-import Icon from '../icon';
+import omit from 'omit.js';
+import classNames from 'classnames';
+import StarFilled from '@ant-design/icons/StarFilled';
+
+import Tooltip from '../tooltip';
+import { ConfigConsumer, ConfigConsumerProps } from '../config-provider';
 
 export interface RateProps {
   prefixCls?: string;
@@ -11,25 +15,35 @@ export interface RateProps {
   allowHalf?: boolean;
   allowClear?: boolean;
   disabled?: boolean;
-  onChange?: (value: number) => any;
-  onHoverChange?: (value: number) => any;
+  tooltips?: Array<string>;
+  onChange?: (value: number) => void;
+  onHoverChange?: (value: number) => void;
   character?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
 
-export default class Rate extends React.Component<RateProps, any> {
-  static propTypes = {
-    prefixCls: PropTypes.string,
-    character: PropTypes.node,
-  };
+interface RateNodeProps {
+  index: number;
+}
 
+export default class Rate extends React.Component<RateProps, any> {
   static defaultProps = {
-    prefixCls: 'ant-rate',
-    character: <Icon type="star" theme="filled" />,
+    character: <StarFilled />,
   };
 
   private rcRate: any;
+
+  saveRate = (node: any) => {
+    this.rcRate = node;
+  };
+
+  characterRender = (node: React.ReactElement, { index }: RateNodeProps) => {
+    const { tooltips } = this.props;
+    if (!tooltips) return node;
+
+    return <Tooltip title={tooltips[index]}>{node}</Tooltip>;
+  };
 
   focus() {
     this.rcRate.focus();
@@ -39,11 +53,27 @@ export default class Rate extends React.Component<RateProps, any> {
     this.rcRate.blur();
   }
 
-  saveRate = (node: any) => {
-    this.rcRate = node;
-  }
+  renderRate = ({ getPrefixCls, direction }: ConfigConsumerProps) => {
+    const { prefixCls, className, ...restProps } = this.props;
+
+    const rateProps = omit(restProps, ['tooltips']);
+    const ratePrefixCls = getPrefixCls('rate', prefixCls);
+    const rateClassNames = classNames(className, {
+      [`${ratePrefixCls}-rtl`]: direction === 'rtl',
+    });
+
+    return (
+      <RcRate
+        ref={this.saveRate}
+        characterRender={this.characterRender}
+        {...rateProps}
+        prefixCls={ratePrefixCls}
+        className={rateClassNames}
+      />
+    );
+  };
 
   render() {
-    return <RcRate ref={this.saveRate} {...this.props} />;
+    return <ConfigConsumer>{this.renderRate}</ConfigConsumer>;
   }
 }

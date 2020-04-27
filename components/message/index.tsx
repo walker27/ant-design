@@ -1,7 +1,11 @@
-/* global Promise */
 import * as React from 'react';
+import classNames from 'classnames';
 import Notification from 'rc-notification';
-import Icon from '../icon';
+import LoadingOutlined from '@ant-design/icons/LoadingOutlined';
+import ExclamationCircleFilled from '@ant-design/icons/ExclamationCircleFilled';
+import CloseCircleFilled from '@ant-design/icons/CloseCircleFilled';
+import CheckCircleFilled from '@ant-design/icons/CheckCircleFilled';
+import InfoCircleFilled from '@ant-design/icons/InfoCircleFilled';
 
 let defaultDuration = 3;
 let defaultTop: number;
@@ -11,38 +15,42 @@ let prefixCls = 'ant-message';
 let transitionName = 'move-up';
 let getContainer: () => HTMLElement;
 let maxCount: number;
+let rtl = false;
 
 function getMessageInstance(callback: (i: any) => void) {
   if (messageInstance) {
     callback(messageInstance);
     return;
   }
-  Notification.newInstance({
-    prefixCls,
-    transitionName,
-    style: { top: defaultTop }, // 覆盖原来的样式
-    getContainer,
-    maxCount,
-  }, (instance: any) => {
-    if (messageInstance) {
-      callback(messageInstance);
-      return;
-    }
-    messageInstance = instance;
-    callback(instance);
-  });
+  Notification.newInstance(
+    {
+      prefixCls,
+      transitionName,
+      style: { top: defaultTop }, // 覆盖原来的样式
+      getContainer,
+      maxCount,
+    },
+    (instance: any) => {
+      if (messageInstance) {
+        callback(messageInstance);
+        return;
+      }
+      messageInstance = instance;
+      callback(instance);
+    },
+  );
 }
 
 type NoticeType = 'info' | 'success' | 'error' | 'warning' | 'loading';
 
 export interface ThenableArgument {
-  (_: any): any;
+  (val: any): void;
 }
 
 export interface MessageType {
   (): void;
-  then: (fill: ThenableArgument, reject: ThenableArgument) => Promise<any>;
-  promise: Promise<any>;
+  then: (fill: ThenableArgument, reject: ThenableArgument) => Promise<void>;
+  promise: Promise<void>;
 }
 
 export interface ArgsProps {
@@ -51,35 +59,42 @@ export interface ArgsProps {
   type: NoticeType;
   onClose?: () => void;
   icon?: React.ReactNode;
+  key?: string | number;
 }
+
+const iconMap = {
+  info: InfoCircleFilled,
+  success: CheckCircleFilled,
+  error: CloseCircleFilled,
+  warning: ExclamationCircleFilled,
+  loading: LoadingOutlined,
+};
 
 function notice(args: ArgsProps): MessageType {
   const duration = args.duration !== undefined ? args.duration : defaultDuration;
-  const iconType = ({
-    info: 'info-circle',
-    success: 'check-circle',
-    error: 'close-circle',
-    warning: 'exclamation-circle',
-    loading: 'loading',
-  })[args.type];
+  const IconComponent = iconMap[args.type];
 
-  const target = key++;
-  const closePromise = new Promise((resolve) => {
+  const messageClass = classNames(`${prefixCls}-custom-content`, {
+    [`${prefixCls}-${args.type}`]: args.type,
+    [`${prefixCls}-rtl`]: rtl === true,
+  });
+
+  const target = args.key || key++;
+  const closePromise = new Promise(resolve => {
     const callback = () => {
       if (typeof args.onClose === 'function') {
         args.onClose();
       }
       return resolve(true);
     };
-    getMessageInstance((instance) => {
-      const iconNode = <Icon type={iconType} theme={iconType === 'loading' ? 'outlined' : 'filled'} />;
+    getMessageInstance(instance => {
       instance.notice({
         key: target,
         duration,
         style: {},
         content: (
-          <div className={`${prefixCls}-custom-content${args.type ? ` ${prefixCls}-${args.type}` : ''}`}>
-            {args.icon ? args.icon : iconType ? iconNode : ''}
+          <div className={messageClass}>
+            {args.icon || (IconComponent && <IconComponent />)}
             <span>{args.content}</span>
           </div>
         ),
@@ -92,14 +107,23 @@ function notice(args: ArgsProps): MessageType {
       messageInstance.removeNotice(target);
     }
   };
-  result.then = (filled: ThenableArgument, rejected: ThenableArgument) => closePromise.then(filled, rejected);
+  result.then = (filled: ThenableArgument, rejected: ThenableArgument) =>
+    closePromise.then(filled, rejected);
   result.promise = closePromise;
   return result;
 }
 
 type ConfigContent = React.ReactNode | string;
 type ConfigDuration = number | (() => void);
+type JointContent = ConfigContent | ArgsProps;
 export type ConfigOnClose = () => void;
+
+function isArgsProps(content: JointContent): content is ArgsProps {
+  return (
+    Object.prototype.toString.call(content) === '[object Object]' &&
+    !!(content as ArgsProps).content
+  );
+}
 
 export interface ConfigOptions {
   top?: number;
@@ -108,6 +132,7 @@ export interface ConfigOptions {
   getContainer?: () => HTMLElement;
   transitionName?: string;
   maxCount?: number;
+  rtl?: boolean;
 }
 
 const api: any = {
@@ -134,6 +159,9 @@ const api: any = {
       maxCount = options.maxCount;
       messageInstance = null;
     }
+    if (options.rtl !== undefined) {
+      rtl = options.rtl;
+    }
   },
   destroy() {
     if (messageInstance) {
@@ -143,25 +171,30 @@ const api: any = {
   },
 };
 
-['success', 'info', 'warning', 'error', 'loading'].forEach((type) => {
-  api[type] = (content: ConfigContent, duration?: ConfigDuration, onClose?: ConfigOnClose) => {
+['success', 'info', 'warning', 'error', 'loading'].forEach(type => {
+  api[type] = (content: JointContent, duration?: ConfigDuration, onClose?: ConfigOnClose) => {
+    if (isArgsProps(content)) {
+      return api.open({ ...content, type });
+    }
+
     if (typeof duration === 'function') {
       onClose = duration;
       duration = undefined;
     }
-    return api.open({ content, duration: duration, type, onClose });
+
+    return api.open({ content, duration, type, onClose });
   };
 });
 
 api.warn = api.warning;
 
 export interface MessageApi {
-  info(content: ConfigContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
-  success(content: ConfigContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
-  error(content: ConfigContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
-  warn(content: ConfigContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
-  warning(content: ConfigContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
-  loading(content: ConfigContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
+  info(content: JointContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
+  success(content: JointContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
+  error(content: JointContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
+  warn(content: JointContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
+  warning(content: JointContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
+  loading(content: JointContent, duration?: ConfigDuration, onClose?: ConfigOnClose): MessageType;
   open(args: ArgsProps): MessageType;
   config(options: ConfigOptions): void;
   destroy(): void;

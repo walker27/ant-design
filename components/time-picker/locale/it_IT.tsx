@@ -1,5 +1,7 @@
-const locale = {
-  placeholder: 'Selezionare l\'orario',
+import { TimePickerLocale } from '../index';
+
+const locale: TimePickerLocale = {
+  placeholder: "Selezionare l'orario",
 };
 
 export default locale;

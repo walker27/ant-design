@@ -1,18 +1,18 @@
 import * as React from 'react';
-import Tooltip, { AbstractTooltipProps, TooltipPlacement, TooltipTrigger } from '../tooltip';
-import warning from '../_util/warning';
+import Tooltip, { AbstractTooltipProps, TooltipPlacement } from '../tooltip';
+import { ConfigConsumer, ConfigConsumerProps } from '../config-provider';
+import { getRenderPropValue, RenderFunction } from '../_util/getRenderPropValue';
 
 export interface PopoverProps extends AbstractTooltipProps {
-   title?: React.ReactNode;
-   content?: React.ReactNode;
+  title?: React.ReactNode | RenderFunction;
+  content?: React.ReactNode | RenderFunction;
 }
 
 export default class Popover extends React.Component<PopoverProps, {}> {
   static defaultProps = {
-    prefixCls: 'ant-popover',
     placement: 'top' as TooltipPlacement,
     transitionName: 'zoom-big',
-    trigger: 'hover' as TooltipTrigger,
+    trigger: 'hover',
     mouseEnterDelay: 0.1,
     mouseLeaveDelay: 0.1,
     overlayStyle: {},
@@ -24,36 +24,35 @@ export default class Popover extends React.Component<PopoverProps, {}> {
     return this.tooltip.getPopupDomNode();
   }
 
-  getOverlay() {
-    const { title, prefixCls, content } = this.props;
-    warning(
-      !('overlay' in this.props),
-      'Popover[overlay] is removed, please use Popover[content] instead, ' +
-      'see: https://u.ant.design/popover-content',
-    );
+  getOverlay(prefixCls: string) {
+    const { title, content } = this.props;
     return (
-      <div>
-        {title && <div className={`${prefixCls}-title`}>{title}</div>}
-        <div className={`${prefixCls}-inner-content`}>
-          {content}
-        </div>
-      </div>
+      <>
+        {title && <div className={`${prefixCls}-title`}>{getRenderPropValue(title)}</div>}
+        <div className={`${prefixCls}-inner-content`}>{getRenderPropValue(content)}</div>
+      </>
     );
   }
 
   saveTooltip = (node: any) => {
     this.tooltip = node;
-  }
+  };
 
-  render() {
-    const props = { ...this.props };
+  renderPopover = ({ getPrefixCls }: ConfigConsumerProps) => {
+    const { prefixCls: customizePrefixCls, ...props } = this.props;
     delete props.title;
+    const prefixCls = getPrefixCls('popover', customizePrefixCls);
     return (
       <Tooltip
         {...props}
+        prefixCls={prefixCls}
         ref={this.saveTooltip}
-        overlay={this.getOverlay()}
+        overlay={this.getOverlay(prefixCls)}
       />
     );
+  };
+
+  render() {
+    return <ConfigConsumer>{this.renderPopover}</ConfigConsumer>;
   }
 }

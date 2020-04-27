@@ -11,16 +11,18 @@ title:
 
 ## en-US
 
-To use `confirm()` to popup a confirmation modal dialog.
+Use `confirm()` to show a confirmation modal dialog.
 
-````jsx
+```jsx
 import { Modal, Button } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 
-const confirm = Modal.confirm;
+const { confirm } = Modal;
 
 function showConfirm() {
   confirm({
     title: 'Do you Want to delete these items?',
+    icon: <ExclamationCircleOutlined />,
     content: 'Some descriptions',
     onOk() {
       console.log('OK');
@@ -34,6 +36,7 @@ function showConfirm() {
 function showDeleteConfirm() {
   confirm({
     title: 'Are you sure delete this task?',
+    icon: <ExclamationCircleOutlined />,
     content: 'Some descriptions',
     okText: 'Yes',
     okType: 'danger',
@@ -50,6 +53,7 @@ function showDeleteConfirm() {
 function showPropsConfirm() {
   confirm({
     title: 'Are you sure delete this task?',
+    icon: <ExclamationCircleOutlined />,
     content: 'Some descriptions',
     okText: 'Yes',
     okType: 'danger',
@@ -68,9 +72,7 @@ function showPropsConfirm() {
 
 ReactDOM.render(
   <div>
-    <Button onClick={showConfirm}>
-      Confirm
-    </Button>
+    <Button onClick={showConfirm}>Confirm</Button>
     <Button onClick={showDeleteConfirm} type="dashed">
       Delete
     </Button>
@@ -78,5 +80,6 @@ ReactDOM.render(
       With extra props
     </Button>
   </div>,
-  mountNode);
-````
+  mountNode,
+);
+```

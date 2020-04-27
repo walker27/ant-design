@@ -1,7 +1,7 @@
 import raf from 'raf';
 
 interface RafMap {
-  [id: number]: number,
+  [id: number]: number;
 }
 
 let id: number = 0;
@@ -17,18 +17,22 @@ export default function wrapperRaf(callback: () => void, delayFrames: number = 1
 
     if (restFrames <= 0) {
       callback();
-      delete ids[id];
+      delete ids[myId];
     } else {
-      ids[id] = raf(internalCallback);
+      ids[myId] = raf(internalCallback);
     }
   }
 
-  ids[id] = raf(internalCallback);
+  ids[myId] = raf(internalCallback);
 
   return myId;
 }
 
-wrapperRaf.cancel = function(id: number) {
-  raf.cancel(ids[id]);
-  delete ids[id];
-}
+wrapperRaf.cancel = function cancel(pid?: number) {
+  if (pid === undefined) return;
+
+  raf.cancel(ids[pid]);
+  delete ids[pid];
+};
+
+wrapperRaf.ids = ids; // export this for test usage

@@ -1,4 +1,5 @@
 import Modal from '..';
+import { destroyFns } from '../Modal';
 
 const { confirm } = Modal;
 
@@ -8,6 +9,7 @@ describe('Modal.confirm triggers callbacks correctly', () => {
   afterEach(() => {
     errorSpy.mockReset();
     document.body.innerHTML = '';
+    Modal.destroyAll();
   });
 
   afterAll(() => {
@@ -25,6 +27,13 @@ describe('Modal.confirm triggers callbacks correctly', () => {
       ...args,
     });
   }
+
+  it('should not render title when title not defined', () => {
+    confirm({
+      content: 'some descriptions',
+    });
+    expect(document.querySelector('.ant-modal-confirm-title')).toBe(null);
+  });
 
   it('trigger onCancel once when click on cancel button', () => {
     const onCancel = jest.fn();
@@ -66,17 +75,35 @@ describe('Modal.confirm triggers callbacks correctly', () => {
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
-  if (process.env.REACT !== '15') {
-    it('shows animation when close', () => {
-      jest.useFakeTimers();
-      open();
-      $$('.ant-btn')[0].click();
-      expect($$('.ant-modal-confirm')).toHaveLength(1);
-      jest.runAllTimers();
-      expect($$('.ant-modal-confirm')).toHaveLength(0);
-      jest.useRealTimers();
+  it('should not hide confirm when onOk return Promise.resolve', () => {
+    open({
+      onOk: () => Promise.resolve(''),
     });
-  }
+    $$('.ant-btn-primary')[0].click();
+    expect($$('.ant-modal-confirm')).toHaveLength(1);
+  });
+
+  it('should emit error when onOk return Promise.reject', () => {
+    const error = new Error('something wrong');
+    open({
+      onOk: () => Promise.reject(error),
+    });
+    $$('.ant-btn-primary')[0].click();
+    // wait promise
+    return Promise.resolve().then(() => {
+      expect(errorSpy).toHaveBeenCalledWith(error);
+    });
+  });
+
+  it('shows animation when close', () => {
+    jest.useFakeTimers();
+    open();
+    expect($$('.ant-modal-confirm')).toHaveLength(1);
+    $$('.ant-btn')[0].click();
+    jest.runAllTimers();
+    expect($$('.ant-modal-confirm')).toHaveLength(0);
+    jest.useRealTimers();
+  });
 
   it('ok only', () => {
     open({ okCancel: false });
@@ -91,9 +118,9 @@ describe('Modal.confirm triggers callbacks correctly', () => {
     expect($$('.ant-btn')[1].disabled).toBe(true);
   });
 
-  it('trigger onCancel once when click on cancel button', () => {
+  it('should close modals when click confirm button', () => {
     jest.useFakeTimers();
-    ['info', 'success', 'warning', 'error'].forEach((type) => {
+    ['info', 'success', 'warning', 'error'].forEach(type => {
       Modal[type]({
         title: 'title',
         content: 'content',
@@ -106,9 +133,25 @@ describe('Modal.confirm triggers callbacks correctly', () => {
     jest.useRealTimers();
   });
 
+  it('should not close modals when click confirm button when onOk has argument', () => {
+    jest.useFakeTimers();
+    ['info', 'success', 'warning', 'error'].forEach(type => {
+      Modal[type]({
+        title: 'title',
+        content: 'content',
+        onOk: close => null, // eslint-disable-line no-unused-vars
+      });
+      expect($$(`.ant-modal-confirm-${type}`)).toHaveLength(1);
+      $$('.ant-btn')[0].click();
+      jest.runAllTimers();
+      expect($$(`.ant-modal-confirm-${type}`)).toHaveLength(1);
+    });
+    jest.useRealTimers();
+  });
+
   it('could be update', () => {
     jest.useFakeTimers();
-    ['info', 'success', 'warning', 'error'].forEach((type) => {
+    ['info', 'success', 'warning', 'error'].forEach(type => {
       const instance = Modal[type]({
         title: 'title',
         content: 'content',
@@ -131,7 +174,7 @@ describe('Modal.confirm triggers callbacks correctly', () => {
 
   it('could be destroy', () => {
     jest.useFakeTimers();
-    ['info', 'success', 'warning', 'error'].forEach((type) => {
+    ['info', 'success', 'warning', 'error'].forEach(type => {
       const instance = Modal[type]({
         title: 'title',
         content: 'content',
@@ -144,11 +187,95 @@ describe('Modal.confirm triggers callbacks correctly', () => {
     jest.useRealTimers();
   });
 
+  it('could be Modal.destroyAll', () => {
+    jest.useFakeTimers();
+    ['info', 'success', 'warning', 'error'].forEach(type => {
+      Modal[type]({
+        title: 'title',
+        content: 'content',
+      });
+      expect($$(`.ant-modal-confirm-${type}`)).toHaveLength(1);
+    });
+    Modal.destroyAll();
+    ['info', 'success', 'warning', 'error'].forEach(type => {
+      jest.runAllTimers();
+      expect($$(`.ant-modal-confirm-${type}`)).toHaveLength(0);
+    });
+    jest.useRealTimers();
+  });
+
   it('prefixCls', () => {
     open({ prefixCls: 'custom-modal' });
     expect($$('.custom-modal-mask')).toHaveLength(1);
     expect($$('.custom-modal-wrap')).toHaveLength(1);
     expect($$('.custom-modal-confirm')).toHaveLength(1);
     expect($$('.custom-modal-confirm-body-wrapper')).toHaveLength(1);
+  });
+
+  it('should be Modal.confirm without mask', () => {
+    open({ mask: false });
+    expect($$('.ant-modal-mask')).toHaveLength(0);
+  });
+
+  it('destroyFns should reduce when instance.destroy', () => {
+    jest.useFakeTimers();
+    Modal.destroyAll(); // clear destroyFns
+    jest.runAllTimers();
+    const instances = [];
+    ['info', 'success', 'warning', 'error'].forEach(type => {
+      const instance = Modal[type]({
+        title: 'title',
+        content: 'content',
+      });
+      instances.push(instance);
+    });
+    const { length } = instances;
+    instances.forEach((instance, index) => {
+      expect(destroyFns.length).toBe(length - index);
+      instance.destroy();
+      jest.runAllTimers();
+      expect(destroyFns.length).toBe(length - index - 1);
+    });
+    jest.useRealTimers();
+  });
+
+  it('should warning when pass a string as icon props', () => {
+    const warnSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    confirm({
+      content: 'some descriptions',
+      icon: 'ab',
+    });
+    expect(warnSpy).not.toHaveBeenCalled();
+    confirm({
+      content: 'some descriptions',
+      icon: 'question',
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      `Warning: [antd: Modal] \`icon\` is using ReactNode instead of string naming in v4. Please check \`question\` at https://ant.design/components/icon`,
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('ok button should trigger onOk once when click it many times quickly', () => {
+    const onOk = jest.fn();
+    open({ onOk });
+    $$('.ant-btn-primary')[0].click();
+    $$('.ant-btn-primary')[0].click();
+    expect(onOk).toHaveBeenCalledTimes(1);
+  });
+
+  // https://github.com/ant-design/ant-design/issues/23358
+  it('ok button should trigger onOk multiple times when onOk has close argument', () => {
+    const onOk = jest.fn();
+    open({
+      onOk: close => {
+        onOk();
+        (() => {})(close); // do nothing
+      },
+    });
+    $$('.ant-btn-primary')[0].click();
+    $$('.ant-btn-primary')[0].click();
+    $$('.ant-btn-primary')[0].click();
+    expect(onOk).toHaveBeenCalledTimes(3);
   });
 });

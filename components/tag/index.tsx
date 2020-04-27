@@ -1,179 +1,137 @@
 import * as React from 'react';
-import * as ReactDOM from 'react-dom';
-import Animate from 'rc-animate';
 import classNames from 'classnames';
 import omit from 'omit.js';
-import { polyfill } from 'react-lifecycles-compat';
-import Icon from '../icon';
+import CloseOutlined from '@ant-design/icons/CloseOutlined';
+
 import CheckableTag from './CheckableTag';
+import { ConfigConsumer, ConfigConsumerProps } from '../config-provider';
+import {
+  PresetColorTypes,
+  PresetStatusColorTypes,
+  PresetColorType,
+  PresetStatusColorType,
+} from '../_util/colors';
 import Wave from '../_util/wave';
+import { LiteralUnion } from '../_util/type';
 
 export { CheckableTagProps } from './CheckableTag';
 
-export interface TagProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
   prefixCls?: string;
   className?: string;
-  color?: string;
-  /** 标签是否可以关闭 */
+  color?: LiteralUnion<PresetColorType | PresetStatusColorType, string>;
   closable?: boolean;
   visible?: boolean;
-  /** 关闭时的回调 */
   onClose?: Function;
-  /** 动画关闭后的回调 */
-  afterClose?: Function;
   style?: React.CSSProperties;
+  icon?: React.ReactNode;
 }
 
-export interface TagState {
-  closing: boolean;
-  closed: boolean;
-  visible: boolean;
-  mounted: boolean;
+const PresetColorRegex = new RegExp(`^(${PresetColorTypes.join('|')})(-inverse)?$`);
+const PresetStatusColorRegex = new RegExp(`^(${PresetStatusColorTypes.join('|')})$`);
+
+interface TagType extends React.FC<TagProps> {
+  CheckableTag: typeof CheckableTag;
 }
 
-class Tag extends React.Component<TagProps, TagState> {
-  static CheckableTag = CheckableTag;
-  static defaultProps = {
-    prefixCls: 'ant-tag',
-    closable: false,
+const Tag: TagType = props => {
+  const [visible, setVisible] = React.useState(true);
+
+  React.useEffect(() => {
+    if ('visible' in props) {
+      setVisible(props.visible!);
+    }
+  }, [props.visible]);
+
+  const isPresetColor = (): boolean => {
+    const { color } = props;
+    if (!color) {
+      return false;
+    }
+    return PresetColorRegex.test(color) || PresetStatusColorRegex.test(color);
   };
 
-  static getDerivedStateFromProps(nextProps: TagProps, state: TagState) {
-    if ('visible' in nextProps) {
-      let newState: Partial<TagState> = {
-        visible: nextProps.visible,
-        mounted: true,
-      };
-
-      if (!state.mounted) {
-        newState = {
-          ...newState,
-          closed: !nextProps.visible,
-        };
-      }
-      return newState;
-    }
-    return null;
-  }
-
-  state = {
-    closing: false,
-    closed: false,
-    visible: true,
-    mounted: false,
+  const getTagStyle = () => {
+    const { color, style } = props;
+    return {
+      backgroundColor: color && !isPresetColor() ? color : undefined,
+      ...style,
+    };
   };
 
-  componentDidUpdate(_prevProps: TagProps, prevState: TagState) {
-    if (prevState.visible && !this.state.visible) {
-      this.close();
-    } else if (!prevState.visible && this.state.visible) {
-      this.show();
-    }
-  }
+  const getTagClassName = ({ getPrefixCls, direction }: ConfigConsumerProps) => {
+    const { prefixCls: customizePrefixCls, className, color } = props;
+    const presetColor = isPresetColor();
+    const prefixCls = getPrefixCls('tag', customizePrefixCls);
+    return classNames(
+      prefixCls,
+      {
+        [`${prefixCls}-${color}`]: presetColor,
+        [`${prefixCls}-has-color`]: color && !presetColor,
+        [`${prefixCls}-hidden`]: !visible,
+        [`${prefixCls}-rtl`]: direction === 'rtl',
+      },
+      className,
+    );
+  };
 
-  handleIconClick = (e: React.MouseEvent<HTMLElement>) => {
-    const onClose = this.props.onClose;
+  const handleIconClick = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    const { onClose } = props;
     if (onClose) {
       onClose(e);
     }
-    if (e.defaultPrevented || 'visible' in this.props) {
+
+    if (e.defaultPrevented) {
       return;
     }
-    this.setState({ visible: false });
-  }
-
-  close = () => {
-    if (this.state.closing || this.state.closed) {
-      return;
+    if (!('visible' in props)) {
+      setVisible(false);
     }
-    const dom = ReactDOM.findDOMNode(this) as HTMLElement;
-    dom.style.width = `${dom.getBoundingClientRect().width}px`;
-    // It's Magic Code, don't know why
-    dom.style.width = `${dom.getBoundingClientRect().width}px`;
-    this.setState({
-      closing: true,
-    });
-  }
+  };
 
-  show = () => {
-    this.setState({
-      closed: false,
-    });
-  }
+  const renderCloseIcon = () => {
+    const { closable } = props;
+    return closable ? <CloseOutlined onClick={handleIconClick} /> : null;
+  };
 
-  animationEnd = (_: string, existed: boolean) => {
-    if (!existed && !this.state.closed) {
-      this.setState({
-        closed: true,
-        closing: false,
-      });
-
-      const afterClose = this.props.afterClose;
-      if (afterClose) {
-        afterClose();
-      }
-    } else {
-      this.setState({
-        closed: false,
-      });
-    }
-  }
-
-  isPresetColor(color?: string): boolean {
-    if (!color) { return false; }
-    return (
-      /^(pink|red|yellow|orange|cyan|green|blue|purple|geekblue|magenta|volcano|gold|lime)(-inverse)?$/
-      .test(color)
-    );
-  }
-
-  render() {
-    const { prefixCls, closable, color, className, children, style, ...otherProps } = this.props;
-    const closeIcon = closable ? <Icon type="close" onClick={this.handleIconClick} /> : '';
-    const isPresetColor = this.isPresetColor(color);
-    const classString = classNames(prefixCls, {
-      [`${prefixCls}-${color}`]: isPresetColor,
-      [`${prefixCls}-has-color`]: (color && !isPresetColor),
-      [`${prefixCls}-close`]: this.state.closing,
-    }, className);
-    // fix https://fb.me/react-unknown-prop
-    const divProps = omit(otherProps, [
-      'onClose',
-      'afterClose',
-      'visible',
-    ]);
-    const tagStyle = {
-      backgroundColor: (color && !isPresetColor) ? color : null,
-      ...style,
-    };
-    const tag = this.state.closed ? <span/> : (
-      <div
-        data-show={!this.state.closing}
-        {...divProps}
-        className={classString}
-        style={tagStyle}
-      >
-        {children}
-        {closeIcon}
-      </div>
+  const renderTag = (configProps: ConfigConsumerProps) => {
+    const { children, icon, ...otherProps } = props;
+    const isNeedWave =
+      'onClick' in otherProps || (children && (children as React.ReactElement<any>).type === 'a');
+    const tagProps = omit(otherProps, ['onClose', 'color', 'visible', 'closable', 'prefixCls']);
+    const iconNode = icon || null;
+    const kids = iconNode ? (
+      <>
+        {iconNode}
+        <span>{children}</span>
+      </>
+    ) : (
+      children
     );
 
-    return (
+    return isNeedWave ? (
       <Wave>
-        <Animate
-          component=""
-          showProp="data-show"
-          transitionName={`${prefixCls}-zoom`}
-          transitionAppear
-          onEnd={this.animationEnd}
-        >
-          {tag}
-        </Animate>
+        <span {...tagProps} className={getTagClassName(configProps)} style={getTagStyle()}>
+          {kids}
+          {renderCloseIcon()}
+        </span>
       </Wave>
+    ) : (
+      <span {...tagProps} className={getTagClassName(configProps)} style={getTagStyle()}>
+        {kids}
+        {renderCloseIcon()}
+      </span>
     );
-  }
-}
+  };
 
-polyfill(Tag);
+  return <ConfigConsumer>{renderTag}</ConfigConsumer>;
+};
+
+Tag.defaultProps = {
+  closable: false,
+};
+
+Tag.CheckableTag = CheckableTag;
 
 export default Tag;

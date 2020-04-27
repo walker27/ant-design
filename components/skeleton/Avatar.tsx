@@ -1,37 +1,33 @@
 import * as React from 'react';
+import omit from 'omit.js';
 import classNames from 'classnames';
+import { ConfigConsumer, ConfigConsumerProps } from '../config-provider';
+import Element, { SkeletonElementProps } from './Element';
 
-export interface SkeletonAvatarProps {
-  prefixCls?: string;
-  className?: string;
-  style?: object;
-  size?: 'large' | 'small' | 'default';
-  shape?: 'circle'| 'square';
+export interface AvatarProps extends Omit<SkeletonElementProps, 'shape'> {
+  shape?: 'circle' | 'square';
 }
 
-class Title extends React.Component<SkeletonAvatarProps, any> {
-  static defaultProps: Partial<SkeletonAvatarProps> = {
-    prefixCls: 'ant-skeleton-avatar',
-    size: 'large',
-  };
-
-  render() {
-    const { prefixCls, className, style, size, shape } = this.props;
-
-    const sizeCls = classNames({
-      [`${prefixCls}-lg`]: size === 'large',
-      [`${prefixCls}-sm`]: size === 'small',
+const SkeletonAvatar = (props: AvatarProps) => {
+  const renderSkeletonAvatar = ({ getPrefixCls }: ConfigConsumerProps) => {
+    const { prefixCls: customizePrefixCls, className, active } = props;
+    const prefixCls = getPrefixCls('skeleton', customizePrefixCls);
+    const otherProps = omit(props, ['prefixCls']);
+    const cls = classNames(prefixCls, className, `${prefixCls}-element`, {
+      [`${prefixCls}-active`]: active,
     });
-
-    const shapeCls = classNames({
-      [`${prefixCls}-circle`]: shape === 'circle',
-      [`${prefixCls}-square`]: shape === 'square',
-    });
-
     return (
-      <span className={classNames(prefixCls, className, sizeCls, shapeCls)} style={style} />
+      <div className={cls}>
+        <Element prefixCls={`${prefixCls}-avatar`} {...otherProps} />
+      </div>
     );
-  }
+  };
+  return <ConfigConsumer>{renderSkeletonAvatar}</ConfigConsumer>;
 }
 
-export default Title;
+SkeletonAvatar.defaultProps = {
+  size: 'default',
+  shape: 'circle',
+};
+
+export default SkeletonAvatar;
